@@ -52,6 +52,8 @@ func main() {
 
 	c.register("login", handlerLogin)
 
+	c.register("register", handlerRegister)
+
 	//get command line arguments
 	arguments := os.Args
 
