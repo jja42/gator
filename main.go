@@ -1,14 +1,19 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 
+	_ "github.com/lib/pq"
+
 	config "github.com/jja42/gator/internal/config"
+	"github.com/jja42/gator/internal/database"
 )
 
 type state struct {
+	db  *database.Queries
 	cfg *config.Config
 }
 
@@ -29,8 +34,19 @@ func main() {
 		return
 	}
 
+	dbURL := configFile.DB_URL
+
+	//Open a connection to the database
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	dbQueries := database.New(db)
+
 	//create our state and commands
-	s := state{cfg: &configFile}
+	s := state{cfg: &configFile, db: dbQueries}
 
 	c := commands{cmds: make(map[string]func(*state, command) error)}
 
