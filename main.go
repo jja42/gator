@@ -54,6 +54,12 @@ func main() {
 
 	c.register("register", handlerRegister)
 
+	c.register("reset", handlerReset)
+
+	c.register("users", handlerUsers)
+
+	c.register("agg", handlerAgg)
+
 	//get command line arguments
 	arguments := os.Args
 

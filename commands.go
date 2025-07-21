@@ -11,6 +11,50 @@ import (
 	"github.com/jja42/gator/internal/database"
 )
 
+func handlerReset(s *state, cmd command) error {
+	//Connect to Database and Reset
+	database := *s.db
+
+	err := database.DeleteUsers(context.Background())
+	if err != nil {
+		return errors.New("users table could not be deleted")
+	}
+
+	println("Database Was Successfully Reset.")
+
+	return nil
+}
+
+func handlerAgg(s *state, cmd command) error {
+	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%v", feed)
+	return nil
+}
+
+func handlerUsers(s *state, cmd command) error {
+	//Connect to Database and Reset
+	database := *s.db
+
+	users, err := database.GetUsers(context.Background())
+	if err != nil {
+		return errors.New("could not fetch users from database")
+	}
+
+	for _, user := range users {
+		fmt.Printf("%s", user.Name)
+		if user.Name == s.cfg.UserName {
+			fmt.Printf(" (current)")
+		}
+		fmt.Printf("\n")
+	}
+
+	return nil
+}
+
 func handlerLogin(s *state, cmd command) error {
 
 	//Check for Empty Arguments
@@ -72,7 +116,7 @@ func handlerRegister(s *state, cmd command) error {
 
 	fmt.Println("User was successfully created.")
 
-	fmt.Printf("User Name: %s\tUser ID: %v\tCreated At: %v", user.Name, user.ID, user.CreatedAt)
+	fmt.Printf("User Name: %s\tUser ID: %v\tCreated At: %v\n", user.Name, user.ID, user.CreatedAt)
 
 	return nil
 }
