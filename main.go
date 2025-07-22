@@ -60,6 +60,8 @@ func main() {
 
 	c.register("agg", handlerAgg)
 
+	c.register("addfeed", handlerAddFeed)
+
 	//get command line arguments
 	arguments := os.Args
 

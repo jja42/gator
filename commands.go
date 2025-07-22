@@ -11,6 +11,47 @@ import (
 	"github.com/jja42/gator/internal/database"
 )
 
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.arguments) == 0 {
+		return errors.New("missing name and url")
+	}
+
+	if len(cmd.arguments) == 1 {
+		return errors.New("missing url")
+	}
+
+	//Connect to Database and Reset
+	db := *s.db
+
+	user, err := db.GetUser(context.Background(), s.cfg.UserName)
+	if err != nil {
+		return errors.New("current user could not be obtained")
+	}
+
+	//Setup Feed Params
+	id := uuid.New()
+
+	created_at := time.Now()
+
+	updated_at := created_at
+
+	name := cmd.arguments[0]
+
+	url := cmd.arguments[1]
+
+	args := database.CreateFeedParams{ID: id, CreatedAt: created_at, UpdatedAt: updated_at, Name: name, Url: url, UserID: user.ID}
+
+	feed, err := db.CreateFeed(context.Background(), args)
+
+	if err != nil {
+		return errors.New("could not create feed")
+	}
+
+	fmt.Printf("Feed Successfully Created.\n Name: %s\tUrl: %s\tCreated At:%v\n", feed.Name, feed.Url, feed.CreatedAt)
+
+	return nil
+}
+
 func handlerReset(s *state, cmd command) error {
 	//Connect to Database and Reset
 	database := *s.db
@@ -104,9 +145,9 @@ func handlerRegister(s *state, cmd command) error {
 	args := database.CreateUserParams{Name: username, ID: id, CreatedAt: created_at, UpdatedAt: updated_at}
 
 	//Connect to Database and Create User
-	database := *s.db
+	db := *s.db
 
-	user, err := database.CreateUser(context.Background(), args)
+	user, err := db.CreateUser(context.Background(), args)
 	if err != nil {
 		return errors.New("user could not be created")
 	}
