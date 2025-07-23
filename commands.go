@@ -32,7 +32,7 @@ func handlerBrowse(s *state, cmd command, user database.User) error {
 	for _, post := range posts {
 		feed, err := s.db.GetFeed(context.Background(), post.FeedID)
 		if err != nil {
-			return errors.New("Cannot Get Associated Feed from Post")
+			return errors.New("cannot get associated feed from post")
 		}
 		fmt.Printf("%s from %s\n", post.PublishedAt.Format("Mon Jan 2"), feed.Name)
 		fmt.Printf("--- %s ---\n", post.Title)
