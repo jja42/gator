@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,13 +12,64 @@ import (
 	"github.com/jja42/gator/internal/database"
 )
 
-func handlerFollowing(s *state, cmd command) error {
-	db := *s.db
-
-	user, err := db.GetUser(context.Background(), s.cfg.UserName)
-	if err != nil {
-		return errors.New("current user could not be obtained")
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	limit := 2
+	var err error
+	if len(cmd.arguments) > 0 {
+		limit, err = strconv.Atoi(cmd.arguments[0])
+		if err != nil {
+			return errors.New("could not parse limit")
+		}
 	}
+
+	args := database.GetPostsForUserParams{UserID: user.ID, Limit: int32(limit)}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), args)
+	if err != nil {
+		return errors.New("unable to get posts for user")
+	}
+
+	for _, post := range posts {
+		feed, err := s.db.GetFeed(context.Background(), post.FeedID)
+		if err != nil {
+			return errors.New("Cannot Get Associated Feed from Post")
+		}
+		fmt.Printf("%s from %s\n", post.PublishedAt.Format("Mon Jan 2"), feed.Name)
+		fmt.Printf("--- %s ---\n", post.Title)
+		fmt.Printf("    %v\n", post.Description)
+		fmt.Printf("Link: %s\n", post.Url)
+		fmt.Println("=====================================")
+	}
+
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.arguments) == 0 {
+		return errors.New("missing feed url to unfollow")
+	}
+
+	feedURL := cmd.arguments[0]
+
+	feed, err := s.db.GetFeedFromURL(context.Background(), feedURL)
+	if err != nil {
+		return errors.New("unable to get feed to unfollow")
+	}
+
+	args := database.RemoveFeedFollowParams{UserID: user.ID, FeedID: feed.ID}
+
+	err = s.db.RemoveFeedFollow(context.Background(), args)
+	if err != nil {
+		return errors.New("unable to unfollow feed")
+	}
+
+	fmt.Printf("Successfully Unfollowed: %s", feed.Name)
+
+	return nil
+}
+
+func handlerFollowing(s *state, cmd command, user database.User) error {
+	db := *s.db
 
 	follows, err := db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
@@ -35,7 +87,7 @@ func handlerFollowing(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.arguments) == 0 {
 		return errors.New("missing name and url")
 	}
@@ -46,11 +98,6 @@ func handlerAddFeed(s *state, cmd command) error {
 
 	//Connect to Database and Reset
 	db := *s.db
-
-	user, err := db.GetUser(context.Background(), s.cfg.UserName)
-	if err != nil {
-		return errors.New("current user could not be obtained")
-	}
 
 	//Setup Feed Params
 	id := uuid.New()
@@ -106,13 +153,26 @@ func handlerReset(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if len(cmd.arguments) == 0 {
+		return errors.New("missing time between requests")
+	}
+
+	time_between_reqs := cmd.arguments[0]
+
+	timeBetweenRequests, err := time.ParseDuration(time_between_reqs)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%v", feed)
-	return nil
+	fmt.Printf("Collecting feeds every %s\n", cmd.arguments[0])
+
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		err = scrapeFeeds(s)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func handlerUsers(s *state, cmd command) error {
@@ -157,7 +217,7 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.arguments) == 0 {
 		return errors.New("missing url argument")
 	}
@@ -167,11 +227,6 @@ func handlerFollow(s *state, cmd command) error {
 	feed, err := s.db.GetFeedFromURL(context.Background(), url)
 	if err != nil {
 		return errors.New("unable to get feed to follow")
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.cfg.UserName)
-	if err != nil {
-		return errors.New("unable to get user info")
 	}
 
 	//Setup Feed Follow Params

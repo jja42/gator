@@ -60,13 +60,17 @@ func main() {
 
 	c.register("agg", handlerAgg)
 
-	c.register("addfeed", handlerAddFeed)
+	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 
 	c.register("feeds", handlerFeeds)
 
-	c.register("follow", handlerFollow)
+	c.register("follow", middlewareLoggedIn(handlerFollow))
 
-	c.register("following", handlerFollowing)
+	c.register("following", middlewareLoggedIn(handlerFollowing))
+
+	c.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+
+	c.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	//get command line arguments
 	arguments := os.Args
